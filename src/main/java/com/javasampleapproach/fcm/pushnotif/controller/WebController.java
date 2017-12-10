@@ -5,6 +5,8 @@ import java.util.concurrent.ExecutionException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -13,12 +15,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.javasampleapproach.fcm.pushnotif.model.FirebaseResponse;
 import com.javasampleapproach.fcm.pushnotif.service.AndroidPushNotificationsService;
+import com.javasampleapproach.fcm.pushnotif.utils.FirebaseUtil;
 
 @RestController
 public class WebController {
-
-	private final String TOPIC = "JavaSampleApproach";
+	private static final Logger logger = LoggerFactory.getLogger(WebController.class);
 	
 	@Autowired
 	AndroidPushNotificationsService androidPushNotificationsService;
@@ -27,12 +30,13 @@ public class WebController {
 	public ResponseEntity<String> send() throws JSONException {
 
 		JSONObject body = new JSONObject();
-		body.put("to", "/topics/" + TOPIC);
+//		body.put("to", "/topics/" + TOPIC);
+		body.put("to", FirebaseUtil.FIREBASE_SERVER_KEY);
 		body.put("priority", "high");
 
 		JSONObject notification = new JSONObject();
-		notification.put("title", "JSA Notification");
-		notification.put("body", "Happy Message!");
+		notification.put("title", "타이틀!");
+		notification.put("body", "내용!");
 		
 		JSONObject data = new JSONObject();
 		data.put("Key-1", "JSA Data 1");
@@ -43,13 +47,17 @@ public class WebController {
 
 		HttpEntity<String> request = new HttpEntity<>(body.toString());
 
-		CompletableFuture<String> pushNotification = androidPushNotificationsService.send(request);
+		CompletableFuture<FirebaseResponse> pushNotification = androidPushNotificationsService.send(request);
 		CompletableFuture.allOf(pushNotification).join();
 
 		try {
-			String firebaseResponse = pushNotification.get();
+			FirebaseResponse firebaseResponse = pushNotification.get();
+			if(firebaseResponse.getSuccess() == 1)
+				logger.info("Push Notification Sent OK!");
+			else
+				logger.error("Error Sending Push Notifications : " + firebaseResponse.toString());
 			
-			return new ResponseEntity<>(firebaseResponse, HttpStatus.OK);
+			return new ResponseEntity<>(firebaseResponse.toString(), HttpStatus.OK);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		} catch (ExecutionException e) {
